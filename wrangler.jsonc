@@ -1,0 +1,10 @@
+{
+  // https://developers.cloudflare.com/workers/wrangler/configuration/
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tiger-sun-memorial",
+  "compatibility_date": "2026-06-23",
+  // Serve the static files in this directory (index.html etc.)
+  "assets": {
+    "directory": "."
+  }
+}

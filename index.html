@@ -29,6 +29,18 @@
       line-height: 1.7;
     }
 
+    /* ── Scroll progress bar ── */
+    .scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      z-index: 100;
+      transition: width 0.1s ease-out;
+    }
+
     /* ── Hero ── */
     .hero {
       min-height: 100vh;
@@ -50,18 +62,40 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
     }
 
     .hero-image-placeholder img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      /* Slow, gentle "Ken Burns" zoom */
+      animation: kenburns 20s ease-out forwards;
+    }
+
+    @keyframes kenburns {
+      from { transform: scale(1); }
+      to   { transform: scale(1.08); }
     }
 
     .hero-content {
       position: relative;
       z-index: 1;
       max-width: 700px;
+    }
+
+    /* Staggered entrance for the hero pieces */
+    .hero-content > * {
+      opacity: 0;
+      animation: rise 1s ease forwards;
+    }
+    .hero-content h1        { animation-delay: 0.3s; }
+    .hero-content .subtitle { animation-delay: 0.6s; }
+    .hero-content .divider  { animation-delay: 0.9s; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .hero h1 {
@@ -79,6 +113,25 @@
       font-size: clamp(1rem, 2.5vw, 1.4rem);
       color: var(--text-muted);
       margin-bottom: 2rem;
+    }
+
+    /* Scroll-down cue at the bottom of the hero */
+    .scroll-cue {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      opacity: 0;
+      animation: rise 1s ease 1.4s forwards, bob 2s ease-in-out 2.4s infinite;
+      color: var(--accent);
+    }
+
+    .scroll-cue svg { display: block; }
+
+    @keyframes bob {
+      0%, 100% { transform: translate(-50%, 0); }
+      50%      { transform: translate(-50%, 8px); }
     }
 
     .divider {
@@ -429,7 +482,7 @@
       }
     }
 
-    /* ── Fade-in animation ── */
+    /* ── Scroll reveal animations ── */
     .fade-in {
       opacity: 0;
       transform: translateY(20px);
@@ -439,9 +492,87 @@
       opacity: 1;
       transform: translateY(0);
     }
+
+    /* Directional variants */
+    .fade-left  { transform: translateX(-30px); }
+    .fade-right { transform: translateX(30px); }
+    .fade-left.visible,
+    .fade-right.visible { transform: translateX(0); }
+
+    /* Staggered children (used by the gallery) */
+    .stagger > * {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .stagger.visible > * {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .stagger.visible > *:nth-child(1) { transition-delay: 0.05s; }
+    .stagger.visible > *:nth-child(2) { transition-delay: 0.15s; }
+    .stagger.visible > *:nth-child(3) { transition-delay: 0.25s; }
+    .stagger.visible > *:nth-child(4) { transition-delay: 0.35s; }
+    .stagger.visible > *:nth-child(5) { transition-delay: 0.45s; }
+
+    /* ── Card hover lifts ── */
+    .about-sponsor,
+    .letter-section {
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .about-sponsor:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(196,149,106,0.15);
+    }
+    .letter-section:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.07);
+    }
+
+    /* Richer gallery hover */
+    .gallery-item {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }
+    .gallery-item:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 14px 28px rgba(196,149,106,0.22);
+    }
+
+    /* Milestone dot gets a soft glow as it enters view */
+    .milestone::before {
+      box-shadow: 0 0 0 0 rgba(196,149,106,0.4);
+      transition: box-shadow 0.6s ease;
+    }
+    .milestones.visible .milestone::before {
+      box-shadow: 0 0 0 6px rgba(196,149,106,0.12);
+    }
+
+    /* Divider grows in from the center */
+    .section-divider {
+      transform-origin: left center;
+      transform: scaleX(0);
+      transition: transform 0.7s ease 0.2s;
+    }
+    .section-divider.visible { transform: scaleX(1); }
+
+    /* ── Respect reduced-motion preferences ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+      .fade-in, .stagger > *, .section-divider {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Scroll progress indicator -->
+  <div class="scroll-progress" id="scrollProgress"></div>
 
   <!-- ════ HERO ════ -->
   <header class="hero">
@@ -454,11 +585,17 @@
       <p class="subtitle"><!-- Subtitle text here --></p>
       <div class="divider"></div>
     </div>
+    <!-- Scroll-down cue -->
+    <div class="scroll-cue" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9l6 6 6-6"/>
+      </svg>
+    </div>
   </header>
 
   <!-- ════ ABOUT THE SPONSOR ════ -->
   <section>
-    <div class="about-sponsor fade-in">
+    <div class="about-sponsor fade-in fade-left">
       <div class="sponsor-photo">
         <!-- Replace with: <img src="sponsor-photo.jpg" alt=""> -->
         <span class="placeholder-label">Photo</span>
@@ -476,7 +613,7 @@
 
   <!-- ════ THE LETTER ════ -->
   <section>
-    <div class="letter-section fade-in">
+    <div class="letter-section fade-in fade-right">
       <p class="greeting"><!-- Greeting here --></p>
       <div class="letter-body-placeholder">
         <!-- Main thank-you letter text here -->
@@ -493,7 +630,7 @@
     <h2 class="fade-in"><!-- Gallery heading here --></h2>
     <p class="section-subtitle fade-in"><!-- Gallery subtitle here --></p>
     <div class="section-divider fade-in"></div>
-    <div class="gallery-grid fade-in">
+    <div class="gallery-grid fade-in stagger">
       <div class="gallery-item tall">
         <!-- <img src="photo1.jpg" alt=""> -->
         <span class="placeholder-label">Photo 1</span>
@@ -564,15 +701,34 @@
   </footer>
 
   <script>
+    // Reveal elements as they scroll into view
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('visible');
+          observer.unobserve(entry.target); // reveal once, then stop watching
         }
       });
     }, { threshold: 0.15 });
 
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    document.querySelectorAll('.fade-in, .section-divider, .milestones')
+      .forEach(el => observer.observe(el));
+
+    // Top scroll-progress bar
+    const progress = document.getElementById('scrollProgress');
+    const updateProgress = () => {
+      const scrolled = window.scrollY;
+      const height = document.documentElement.scrollHeight - window.innerHeight;
+      progress.style.width = (height > 0 ? (scrolled / height) * 100 : 0) + '%';
+    };
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    // Fade the scroll cue out once the user starts scrolling
+    const cue = document.querySelector('.scroll-cue');
+    window.addEventListener('scroll', () => {
+      if (cue) cue.style.opacity = window.scrollY > 60 ? '0' : '';
+    }, { passive: true });
   </script>
 </body>
 </html>
