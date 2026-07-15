@@ -1,0 +1,6 @@
+# Claude Code local config (machine-specific, not for version control)
+.claude/
+
+# Cloudflare / Wrangler
+.wrangler/
+node_modules/
